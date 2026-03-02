@@ -1,5 +1,8 @@
 package com.sample
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ComposeRuntimeFlags
+import androidx.compose.runtime.ExperimentalComposeApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -73,10 +76,11 @@ val nouns = arrayOf(
     "keyboard"
 )
 
+@OptIn(ExperimentalComposeApi::class)
 fun main() {
     var data by mutableStateOf(emptyList<Row>())
-    var selected by mutableStateOf<Row?>(null)
-
+    var selected by mutableStateOf<Int?>(null)
+    ComposeRuntimeFlags.isLinkBufferComposerEnabled = true
     renderComposable(rootElementId = "root") {
         Div({ id("main") }) {
             Div({ classes("container") }) {
@@ -172,36 +176,20 @@ fun main() {
                 Table({ classes("table", "table-hover", "table-striped", "test-data") }) {
                     Tbody {
                         for (chunk in data.chunked(100)) {
-                            key("${chunk.first().id}#${chunk.last().id}#${chunk.size}") {
+                            Group {
                                 for (item in chunk) {
-                                    Tr({ if (selected?.id == item.id) classes("danger") }) {
-                                        Td({ classes("col-md-1") }) { Text(item.id.toString()) }
-                                        Td({ classes("col-md-4") }) {
-                                            A(attrs = {
-                                                onClick {
-                                                    selected = item
-                                                }
-                                            }) { Text(item.label) }
+                                    val isSelected = selected == item.id
+                                    Row(
+                                        item, isSelected,
+                                        select = {
+                                            selected = item.id
+                                        },
+                                        delete = {
+                                            val newData = data.toMutableList()
+                                            newData.remove(item)
+                                            data = newData
                                         }
-                                        Td({ classes("col-md-1") }) {
-                                            A(attrs = {
-                                                onClick {
-                                                    val newData = data.toMutableList()
-                                                    newData.remove(item)
-                                                    data = newData
-                                                }
-                                            }) {
-                                                Span({
-                                                    classes(
-                                                        "glyphicon",
-                                                        "glyphicon-remove"
-                                                    )
-                                                    attr("aria-hidden", "true")
-                                                })
-                                            }
-                                        }
-                                        Td({ classes("col-md-6") })
-                                    }
+                                    )
                                 }
                             }
                         }
@@ -214,5 +202,40 @@ fun main() {
                 })
             }
         }
+    }
+}
+
+@Composable
+private fun Group(content: @Composable () -> Unit) {
+    content()
+}
+
+@Composable
+private fun Row(item: Row, selected: Boolean, select: () -> Unit, delete: () -> Unit) {
+    Tr({ if (selected) classes("danger") }) {
+        Td({ classes("col-md-1") }) { Text(item.id.toString()) }
+        Td({ classes("col-md-4") }) {
+            A(attrs = {
+                onClick {
+                    select()
+                }
+            }) { Text(item.label) }
+        }
+        Td({ classes("col-md-1") }) {
+            A(attrs = {
+                onClick {
+                    delete()
+                }
+            }) {
+                Span({
+                    classes(
+                        "glyphicon",
+                        "glyphicon-remove"
+                    )
+                    attr("aria-hidden", "true")
+                })
+            }
+        }
+        Td({ classes("col-md-6") })
     }
 }
